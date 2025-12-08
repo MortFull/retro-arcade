@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Galaga</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Back button with sound -->
+  <button id="backBtn" onclick="playSound('back'); window.location.href='../index.html'">⬅ Back to Arcade</button>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <canvas id="galaga" width="600" height="400"></canvas>
+
+<script src="../js/sound.js"></script>
+<script>
+const canvas = document.getElementById("galaga");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const gameMessage = document.getElementById("gameMessage");
+
+let player, bullets, enemies, score, gameOver, game;
+
+function initGame(){
+  player = { x: canvas.width/2-20, y: canvas.height-30, w:40, h:20, color:"#0f0" };
+  bullets = [];
+  enemies = [];
+  score = 0;
+  gameOver = false;
+  overlay.style.display = "none";
+
+  // spawn enemies
+  for(let r=0;r<4;r++){
+    for(let c=0;c<8;c++){
+      enemies.push({ x:60*c+30, y:40*r+30, w:30, h:20, color:"#f0f", dx:2 });
+    }
+  }
+
+  clearInterval(game);
+  game = setInterval(draw,50);
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowLeft") player.x -= 20;
+  if(e.key==="ArrowRight") player.x += 20;
+  if(e.key===" "){ // shoot
+    bullets.push({ x:player.x+player.w/2-2, y:player.y, w:4, h:10, color:"#ff0" });
+    playSound("galaga-shoot"); // shooting sound
+  }
+  if(e.key==="Enter" && gameOver){ initGame(); }
+});
+
+function draw(){
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // draw player
+  ctx.fillStyle=player.color;
+  ctx.fillRect(player.x,player.y,player.w,player.h);
+
+  // draw bullets
+  for(let b of bullets){
+    ctx.fillStyle=b.color;
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+    b.y -= 10;
+  }
+  bullets = bullets.filter(b=>b.y>0);
+
+  // move enemies
+  for(let e of enemies){
+    e.x += e.dx;
+    if(e.x+e.w > canvas.width || e.x < 0){
+      e.dx *= -1;
+      e.y += 20; // descend when bouncing
+    }
+    ctx.fillStyle=e.color;
+    ctx.fillRect(e.x,e.y,e.w,e.h);
+
+    // collision with player
+    if(e.y+e.h >= player.y && e.x < player.x+player.w && e.x+e.w > player.x){
+      clearInterval(game);
+      gameOver=true;
+      overlay.style.display = "flex";
+      gameMessage.textContent = "GAME OVER";
+      playSound("game-over"); // game over sound
+    }
+  }
+
+  // bullet collision
+  for(let b of bullets){
+    for(let e of enemies){
+      if(b.x < e.x+e.w && b.x+b.w > e.x && b.y < e.y+e.h && b.y+b.h > e.y){
+        enemies.splice(enemies.indexOf(e),1);
+        bullets.splice(bullets.indexOf(b),1);
+        score += 10;
+        playSound("galaga-hit"); // enemy hit sound
+        break;
+      }
+    }
+  }
+
+  // score
+  ctx.fillStyle="white";
+  ctx.font="20px Arial";
+  ctx.fillText("Score: "+score,10,20);
+
+  // win condition
+  if(enemies.length===0){
+    clearInterval(game);
+    gameOver=true;
+    overlay.style.display = "flex";
+    gameMessage.textContent = "YOU WIN!";
+    playSound("win"); // win sound
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pac-Man</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Back button with sound -->
+  <button id="backBtn" onclick="playSound('back'); window.location.href='../index.html'">⬅ Back to Arcade</button>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <canvas id="pacman" width="448" height="496"></canvas>
+
+<script src="../js/sound.js"></script>
+<script>
+const canvas = document.getElementById("pacman");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const gameMessage = document.getElementById("gameMessage");
+
+let pacman, ghosts, pellets, score, gameOver, game;
+
+function initGame(){
+  pacman = { x: 210, y: 410, dx: 0, dy: 0, r: 10, color: "#ff0" };
+  ghosts = [
+    { x: 210, y: 210, color: "#f00", dx:2, dy:0 },
+    { x: 180, y: 210, color: "#0ff", dx:-2, dy:0 }
+  ];
+  pellets = [];
+  for(let i=0;i<20;i++){
+    for(let j=0;j<20;j++){
+      pellets.push({ x:i*20+10, y:j*20+10, eaten:false });
+    }
+  }
+  score = 0;
+  gameOver = false;
+  overlay.style.display = "none";
+  clearInterval(game);
+  game = setInterval(draw,100);
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowUp"){ pacman.dx=0; pacman.dy=-20; }
+  if(e.key==="ArrowDown"){ pacman.dx=0; pacman.dy=20; }
+  if(e.key==="ArrowLeft"){ pacman.dx=-20; pacman.dy=0; }
+  if(e.key==="ArrowRight"){ pacman.dx=20; pacman.dy=0; }
+  if(e.key==="Enter" && gameOver){ initGame(); }
+});
+
+function draw(){
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // draw pellets
+  ctx.fillStyle="white";
+  for(let p of pellets){
+    if(!p.eaten){
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,3,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // move pacman
+  pacman.x += pacman.dx;
+  pacman.y += pacman.dy;
+  ctx.fillStyle=pacman.color;
+  ctx.beginPath();
+  ctx.arc(pacman.x,pacman.y,pacman.r,0,Math.PI*2);
+  ctx.fill();
+
+  // eat pellets
+  for(let p of pellets){
+    if(!p.eaten && Math.abs(pacman.x-p.x)<10 && Math.abs(pacman.y-p.y)<10){
+      p.eaten=true;
+      score+=10;
+      playSound("pacman-chomp"); // pellet chomp sound
+    }
+  }
+
+  // draw ghosts
+  for(let g of ghosts){
+    g.x += g.dx;
+    g.y += g.dy;
+    if(g.x<0 || g.x>canvas.width) g.dx*=-1;
+    if(g.y<0 || g.y>canvas.height) g.dy*=-1;
+    ctx.fillStyle=g.color;
+    ctx.beginPath();
+    ctx.arc(g.x,g.y,10,0,Math.PI*2);
+    ctx.fill();
+
+    // collision with pacman
+    if(Math.abs(pacman.x-g.x)<10 && Math.abs(pacman.y-g.y)<10){
+      clearInterval(game);
+      gameOver=true;
+      overlay.style.display = "flex";
+      gameMessage.textContent = "GAME OVER";
+      playSound("game-over"); // ghost collision sound
+    }
+  }
+
+  // win condition
+  if(pellets.every(p=>p.eaten)){
+    clearInterval(game);
+    gameOver=true;
+    overlay.style.display = "flex";
+    gameMessage.textContent = "YOU WIN!";
+    playSound("win"); // win sound
+  }
+
+  // score
+  ctx.fillStyle="white";
+  ctx.font="16px Arial";
+  ctx.fillText("Score: "+score,10,20);
+}
+
+initGame();
+</script>
+</body>
+</html>

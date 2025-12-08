@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Asteroids</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Back button with sound -->
+  <button id="backBtn" onclick="playSound('back'); window.location.href='../index.html'">⬅ Back to Arcade</button>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <canvas id="asteroids" width="600" height="600"></canvas>
+
+<script src="../js/sound.js"></script>
+<script>
+const canvas = document.getElementById("asteroids");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const gameMessage = document.getElementById("gameMessage");
+
+let ship, bullets, asteroids, score, gameOver, game;
+
+function initGame(){
+  ship = { x:300, y:300, angle:0, dx:0, dy:0 };
+  bullets = [];
+  asteroids = [];
+  score = 0;
+  gameOver = false;
+  overlay.style.display = "none";
+
+  // spawn asteroids
+  for(let i=0;i<5;i++){
+    asteroids.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, dx:(Math.random()-0.5)*4, dy:(Math.random()-0.5)*4, r:40 });
+  }
+
+  clearInterval(game);
+  game = setInterval(draw,50);
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowLeft") ship.angle -= 0.1;
+  if(e.key==="ArrowRight") ship.angle += 0.1;
+  if(e.key==="ArrowUp"){ ship.dx += Math.cos(ship.angle)*0.5; ship.dy += Math.sin(ship.angle)*0.5; }
+  if(e.key===" "){ // shoot
+    bullets.push({ x:ship.x, y:ship.y, dx:Math.cos(ship.angle)*5, dy:Math.sin(ship.angle)*5 });
+    playSound("ship-shoot"); // shooting sound
+  }
+  if(e.key==="Enter" && gameOver){ initGame(); }
+});
+
+function drawShip(){
+  ctx.save();
+  ctx.translate(ship.x,ship.y);
+  ctx.rotate(ship.angle);
+  ctx.strokeStyle="#0f0";
+  ctx.beginPath();
+  ctx.moveTo(10,0);
+  ctx.lineTo(-10,7);
+  ctx.lineTo(-10,-7);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function draw(){
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // move ship
+  ship.x += ship.dx;
+  ship.y += ship.dy;
+  if(ship.x<0) ship.x=canvas.width;
+  if(ship.x>canvas.width) ship.x=0;
+  if(ship.y<0) ship.y=canvas.height;
+  if(ship.y>canvas.height) ship.y=0;
+
+  drawShip();
+
+  // bullets
+  for(let b of bullets){
+    b.x += b.dx;
+    b.y += b.dy;
+    ctx.fillStyle="#ff0";
+    ctx.fillRect(b.x,b.y,2,2);
+  }
+
+  // asteroids
+  for(let a of asteroids){
+    a.x += a.dx;
+    a.y += a.dy;
+    if(a.x<0) a.x=canvas.width;
+    if(a.x>canvas.width) a.x=0;
+    if(a.y<0) a.y=canvas.height;
+    if(a.y>canvas.height) a.y=0;
+    ctx.strokeStyle="#f0f";
+    ctx.beginPath();
+    ctx.arc(a.x,a.y,a.r,0,Math.PI*2);
+    ctx.stroke();
+
+    // collision with ship
+    if(Math.hypot(ship.x-a.x,ship.y-a.y)<a.r){
+      clearInterval(game);
+      gameOver=true;
+      overlay.style.display = "flex";
+      gameMessage.textContent = "GAME OVER";
+      playSound("game-over"); // ship destroyed
+    }
+  }
+
+  // bullet collision
+  for(let b of bullets){
+    for(let a of asteroids){
+      if(Math.hypot(b.x-a.x,b.y-a.y)<a.r){
+        asteroids.splice(asteroids.indexOf(a),1);
+        bullets.splice(bullets.indexOf(b),1);
+        score+=10;
+        playSound("asteroid-explode"); // asteroid destroyed
+        break;
+      }
+    }
+  }
+
+  // score
+  ctx.fillStyle="white";
+  ctx.font="20px Arial";
+  ctx.fillText("Score: "+score,10,20);
+
+  // win condition
+  if(asteroids.length===0){
+    clearInterval(game);
+    gameOver=true;
+    overlay.style.display = "flex";
+    gameMessage.textContent = "YOU WIN!";
+    playSound("win"); // win sound
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>

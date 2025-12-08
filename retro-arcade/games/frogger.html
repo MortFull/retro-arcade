@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Frogger</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Back button with sound -->
+  <button id="backBtn" onclick="playSound('back'); window.location.href='../index.html'">⬅ Back to Arcade</button>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <canvas id="frogger" width="400" height="400"></canvas>
+
+<script src="../js/sound.js"></script>
+<script>
+const canvas = document.getElementById("frogger");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const gameMessage = document.getElementById("gameMessage");
+
+let frog, cars, score, gameOver, game;
+
+function initGame(){
+  frog = { x:200, y:380, w:20, h:20, color:"#0f0" };
+  cars = [];
+  score = 0;
+  gameOver = false;
+  overlay.style.display = "none";
+
+  // spawn cars
+  for(let i=0;i<5;i++){
+    cars.push({ x:Math.random()*400, y:i*60+20, w:40, h:20, dx:(Math.random()*4+2) });
+  }
+
+  clearInterval(game);
+  game = setInterval(draw,50);
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowUp"){ frog.y -= 20; playSound("frog-hop"); }
+  if(e.key==="ArrowDown"){ frog.y += 20; playSound("frog-hop"); }
+  if(e.key==="ArrowLeft"){ frog.x -= 20; playSound("frog-hop"); }
+  if(e.key==="ArrowRight"){ frog.x += 20; playSound("frog-hop"); }
+  if(e.key==="Enter" && gameOver){ initGame(); }
+});
+
+function draw(){
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // draw frog
+  ctx.fillStyle=frog.color;
+  ctx.fillRect(frog.x,frog.y,frog.w,frog.h);
+
+  // draw cars
+  for(let c of cars){
+    c.x += c.dx;
+    if(c.x>canvas.width) c.x=0;
+    ctx.fillStyle="#f00";
+    ctx.fillRect(c.x,c.y,c.w,c.h);
+
+    // collision
+    if(frog.x < c.x+c.w && frog.x+frog.w > c.x && frog.y < c.y+c.h && frog.y+frog.h > c.y){
+      clearInterval(game);
+      gameOver=true;
+      overlay.style.display = "flex";
+      gameMessage.textContent = "GAME OVER";
+      playSound("game-over"); // collision sound
+    }
+  }
+
+  // win condition (reach top)
+  if(frog.y<=0){
+    clearInterval(game);
+    gameOver=true;
+    overlay.style.display = "flex";
+    gameMessage.textContent = "YOU WIN!";
+    playSound("win"); // win sound
+  }
+
+  // score
+  ctx.fillStyle="white";
+  ctx.font="16px Arial";
+  ctx.fillText("Score: "+score,10,20);
+}
+
+initGame();
+</script>
+</body>
+</html>

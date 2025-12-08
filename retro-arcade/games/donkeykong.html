@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Donkey Kong</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Back button with sound -->
+  <button id="backBtn" onclick="playSound('back'); window.location.href='../index.html'">⬅ Back to Arcade</button>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <canvas id="donkeykong" width="400" height="400"></canvas>
+
+<script src="../js/sound.js"></script>
+<script>
+const canvas = document.getElementById("donkeykong");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const gameMessage = document.getElementById("gameMessage");
+
+let player, barrels, score, gameOver, game;
+
+function initGame(){
+  player = { x:200, y:380, w:20, h:20, dy:0, jumping:false };
+  barrels = [];
+  score = 0;
+  gameOver = false;
+  overlay.style.display = "none";
+
+  // spawn barrels
+  setInterval(()=>{
+    if(!gameOver){
+      barrels.push({ x:Math.random()*400, y:0, w:20, h:20, dy:3 });
+    }
+  },2000);
+
+  clearInterval(game);
+  game = setInterval(draw,50);
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowLeft") player.x -= 20;
+  if(e.key==="ArrowRight") player.x += 20;
+  if(e.key===" " && !player.jumping){
+    player.dy = -10;
+    player.jumping = true;
+    playSound("dk-jump"); // jump sound
+  }
+  if(e.key==="Enter" && gameOver){ initGame(); }
+});
+
+function draw(){
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // gravity
+  player.y += player.dy;
+  if(player.y>=380){
+    player.y=380;
+    player.dy=0;
+    player.jumping=false;
+  } else {
+    player.dy += 0.5;
+  }
+
+  // draw player
+  ctx.fillStyle="#0f0";
+  ctx.fillRect(player.x,player.y,player.w,player.h);
+
+  // draw barrels
+  for(let b of barrels){
+    b.y += b.dy;
+    ctx.fillStyle="#f00";
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+
+    // collision
+    if(player.x < b.x+b.w && player.x+player.w > b.x && player.y < b.y+b.h && player.y+player.h > b.y){
+      clearInterval(game);
+      gameOver=true;
+      overlay.style.display = "flex";
+      gameMessage.textContent = "GAME OVER";
+      playSound("game-over"); // barrel collision
+    }
+  }
+
+  // remove offscreen barrels
+  barrels = barrels.filter(b=>b.y<canvas.height);
+
+  // score
+  score++;
+  ctx.fillStyle="white";
+  ctx.font="16px Arial";
+  ctx.fillText("Score: "+score,10,20);
+
+  // win condition (arbitrary score threshold)
+  if(score>=1000){
+    clearInterval(game);
+    gameOver=true;
+    overlay.style.display = "flex";
+    gameMessage.textContent = "YOU WIN!";
+    playSound("win"); // win sound
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>

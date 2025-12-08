@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Back button with sound -->
+  <button id="backBtn" onclick="playSound('back'); window.location.href='../index.html'">⬅ Back to Arcade</button>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <canvas id="pong" width="600" height="400"></canvas>
+
+<script src="../js/sound.js"></script>
+<script>
+const canvas = document.getElementById("pong");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const gameMessage = document.getElementById("gameMessage");
+
+let ball, paddle, aiPaddle, score, aiScore, gameOver, game;
+
+function initGame(){
+  ball = { x:300, y:200, dx:4, dy:4, r:10 };
+  paddle = { x:260, y:380, w:80, h:10 };
+  aiPaddle = { x:260, y:10, w:80, h:10 };
+  score = 0;
+  aiScore = 0;
+  gameOver = false;
+  overlay.style.display = "none";
+  clearInterval(game);
+  game = setInterval(draw,30);
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowLeft") paddle.x -= 20;
+  if(e.key==="ArrowRight") paddle.x += 20;
+  if(e.key==="Enter" && gameOver){ initGame(); }
+});
+
+function draw(){
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // ball
+  ctx.fillStyle="#ff0";
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fill();
+
+  // paddles
+  ctx.fillStyle="#0f0";
+  ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
+  ctx.fillStyle="#f0f";
+  ctx.fillRect(aiPaddle.x,aiPaddle.y,aiPaddle.w,aiPaddle.h);
+
+  // move ball
+  ball.x += ball.dx;
+  ball.y += ball.dy;
+
+  // bounce walls
+  if(ball.x+ball.r>canvas.width || ball.x-ball.r<0) {
+    ball.dx*=-1;
+    playSound("pong-hit"); // wall bounce
+  }
+
+  // collision with player paddle
+  if(ball.y+ball.r>paddle.y && ball.x>paddle.x && ball.x<paddle.x+paddle.w){
+    ball.dy*=-1;
+    score++;
+    playSound("pong-hit"); // paddle hit
+  }
+
+  // collision with AI paddle
+  if(ball.y-ball.r<aiPaddle.y+aiPaddle.h && ball.x>aiPaddle.x && ball.x<aiPaddle.x+aiPaddle.w){
+    ball.dy*=-1;
+    aiScore++;
+    playSound("pong-hit"); // AI paddle hit
+  }
+
+  // AI paddle follows ball
+  aiPaddle.x = ball.x - aiPaddle.w/2;
+
+  // score display
+  ctx.fillStyle="white";
+  ctx.font="20px Arial";
+  ctx.fillText("Player: "+score,10,20);
+  ctx.fillText("AI: "+aiScore,10,40);
+
+  // game over
+  if(ball.y+ball.r>canvas.height || ball.y-ball.r<0){
+    clearInterval(game);
+    gameOver=true;
+    overlay.style.display = "flex";
+    gameMessage.textContent = "GAME OVER";
+    playSound("game-over"); // game over sound
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>
