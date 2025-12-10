@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Space Invaders — IvoCade</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.7);
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 0 10px #0ff;
+    }
+    .game-message { font-size: 2em; margin-bottom: 10px; }
+    .restart-message { font-size: 1.2em; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Space Invaders</h1>
+
+  <div class="game-container">
+    <canvas class="default" id="spaceinvaders" width="600" height="400"></canvas>
+    <div class="scoreboard" id="scoreboard">Score: 0</div>
+    <div class="game-controls">
+      <button class="restart-btn" aria-label="Restart game"></button>
+      <button class="back-btn" aria-label="Back to menu"></button>
+      <button class="sound-toggle" aria-label="Toggle sound"></button>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <footer><p>© Ivaylo's Arcade</p></footer>
+
+  <script src="../js/sound.js"></script>
+  <script>
+    const canvas = document.getElementById("spaceinvaders");
+    const ctx = canvas.getContext("2d");
+    const overlay = document.getElementById("overlay");
+    const gameMessage = document.getElementById("gameMessage");
+    const scoreboard = document.getElementById("scoreboard");
+
+    let player, bullets, enemies, score, gameOver, game;
+
+    // Difficulty from hub
+    const params = new URLSearchParams(window.location.search);
+    const difficulty = params.get("difficulty") || "normal";
+    let enemySpeed = difficulty === "easy" ? 1 : difficulty === "hard" ? 3 : 2;
+
+    // Load sprite sheet
+    const sprite = new Image();
+    sprite.src = "../assets/ui/logos.png";
+
+    const logoMap = {
+      player: {x:0,   y:0,   w:64, h:64},
+      bullet: {x:64,  y:0,   w:64, h:64},
+      enemy:  {x:128, y:64,  w:64, h:64}
+    };
+
+    function drawLogo(name, dx, dy, dw, dh){
+      const s = logoMap[name];
+      ctx.drawImage(sprite, s.x, s.y, s.w, s.h, dx, dy, dw, dh);
+    }
+
+    function initGame(){
+      player = { x: canvas.width/2-20, y: canvas.height-30, w:32, h:32 };
+      bullets = [];
+      enemies = [];
+      score = 0;
+      gameOver = false;
+      overlay.style.display = "none";
+
+      // spawn enemies
+      for(let r=0;r<3;r++){
+        for(let c=0;c<8;c++){
+          enemies.push({ x:60*c+30, y:40*r+30, w:32, h:32, dx:enemySpeed });
+        }
+      }
+
+      clearInterval(game);
+      updateScoreboard();
+      playStart();
+      game = setInterval(draw,50);
+    }
+
+    document.addEventListener("keydown", e=>{
+      if(e.key==="ArrowLeft") player.x -= 20;
+      if(e.key==="ArrowRight") player.x += 20;
+      if(e.key===" "){ // shoot
+        bullets.push({ x:player.x+player.w/2-2, y:player.y, w:8, h:16 });
+        playHit(); // shooting sound
+      }
+      if(e.key==="Enter" && gameOver){ initGame(); }
+    });
+
+    function updateScoreboard(){
+      scoreboard.innerHTML = `Score: ${score}`;
+    }
+
+    function draw(){
+      ctx.fillStyle="black";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // draw player
+      drawLogo("player", player.x, player.y, player.w, player.h);
+
+      // draw bullets
+      for(let b of bullets){
+        drawLogo("bullet", b.x, b.y, b.w, b.h);
+        b.y -= 10;
+      }
+      bullets = bullets.filter(b=>b.y>0);
+
+      // move enemies
+      for(let e of enemies){
+        e.x += e.dx;
+        if(e.x+e.w > canvas.width || e.x < 0){
+          e.dx *= -1;
+          e.y += 20; // descend when bouncing
+        }
+        drawLogo("enemy", e.x, e.y, e.w, e.h);
+
+        // collision with player
+        if(e.y+e.h >= player.y && e.x < player.x+player.w && e.x+e.w > player.x){
+          clearInterval(game);
+          gameOver=true;
+          overlay.style.display = "flex";
+          gameMessage.textContent = "GAME OVER";
+          playGameOver();
+
+          // Save highscore + stats
+          ivocadeHelpers.saveHighScore("spaceinv", score);
+          ivocadeHelpers.trackStats("spaceinv", score);
+        }
+      }
+
+      // bullet collision
+      for(let b of bullets){
+        for(let e of enemies){
+          if(b.x < e.x+e.w && b.x+b.w > e.x && b.y < e.y+e.h && b.y+b.h > e.y){
+            enemies.splice(enemies.indexOf(e),1);
+            bullets.splice(bullets.indexOf(b),1);
+            score += 10;
+            updateScoreboard();
+            playScore();
+            break;
+          }
+        }
+      }
+
+      // win condition
+      if(enemies.length===0){
+        clearInterval(game);
+        gameOver=true;
+        overlay.style.display = "flex";
+        gameMessage.textContent = "YOU WIN!";
+        playLevelUp();
+
+        // Save highscore + stats
+        ivocadeHelpers.saveHighScore("spaceinv", score);
+        ivocadeHelpers.trackStats("spaceinv", score);
+      }
+    }
+
+    // Restart button
+    document.querySelector('.restart-btn').addEventListener('click', () => {
+      initGame();
+    });
+
+    initGame();
+  </script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>@ Ivaylo's Arcade</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      text-shadow: 0 0 10px #0ff;
+    }
+    h1 {
+      margin-top: 20px;
+      font-size: 3em;
+      position: relative;
+      z-index: 2;
+    }
+    #backgroundCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 40px auto;
+      width: 80%;
+      position: relative;
+      z-index: 2;
+    }
+    .menu-item {
+      background: rgba(0,0,0,0.6);
+      border: 2px solid #0ff;
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .menu-item:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px #0ff;
+    }
+    canvas.logo { display: block; margin: 0 auto; }
+    .label { margin-top: 5px; font-size: 1.1em; }
+    #music-toggle, #difficulty {
+      background: rgba(0,0,0,0.6);
+      border: 2px solid #0ff;
+      border-radius: 10px;
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      padding: 8px 16px;
+      cursor: pointer;
+      text-shadow: 0 0 10px #0ff;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      z-index: 2;
+      margin: 10px;
+    }
+    #music-toggle:hover, #difficulty:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px #0ff;
+    }
+    #highscores {
+      background: rgba(0,0,0,0.6);
+      border: 2px solid #0ff;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 12px 16px;
+      text-shadow: 0 0 10px #0ff;
+      position: relative;
+      z-index: 2;
+    }
+    #score-list { list-style: none; padding: 0; margin: 0; }
+    #score-list li { margin: 6px 0; font-size: 1.05em; }
+    .stats { margin-top: 12px; font-size: 0.95em; color: #8ff; }
+    footer { position: relative; z-index: 2; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <canvas id="backgroundCanvas"></canvas>
+  <h1>@ Ivaylo's Arcade</h1>
+  <p style="position:relative;z-index:2;">Select a game to play:</p>
+
+  <div class="menu-grid">
+    <div class="menu-item" onclick="launchGame('pong.html')"><canvas id="logo-pong" class="logo" width="64" height="64"></canvas><div class="label">Pong</div></div>
+    <div class="menu-item" onclick="launchGame('snake.html')"><canvas id="logo-snake" class="logo" width="64" height="64"></canvas><div class="label">Snake</div></div>
+    <div class="menu-item" onclick="launchGame('breakout.html')"><canvas id="logo-breakout" class="logo" width="64" height="64"></canvas><div class="label">Breakout</div></div>
+    <div class="menu-item" onclick="launchGame('tetris.html')"><canvas id="logo-tetris" class="logo" width="64" height="64"></canvas><div class="label">Tetris</div></div>
+    <div class="menu-item" onclick="launchGame('pacman.html')"><canvas id="logo-pacman" class="logo" width="64" height="64"></canvas><div class="label">Pac‑Man</div></div>
+    <div class="menu-item" onclick="launchGame('spaceinvaders.html')"><canvas id="logo-spaceinv" class="logo" width="64" height="64"></canvas><div class="label">Space Invaders</div></div>
+    <div class="menu-item" onclick="launchGame('asteroids.html')"><canvas id="logo-asteroids" class="logo" width="64" height="64"></canvas><div class="label">Asteroids</div></div>
+    <div class="menu-item" onclick="launchGame('galaga.html')"><canvas id="logo-galaga" class="logo" width="64" height="64"></canvas><div class="label">Galaga</div></div>
+    <div class="menu-item" onclick="launchGame('donkeykong.html')"><canvas id="logo-donkeykong" class="logo" width="64" height="64"></canvas><div class="label">Donkey Kong</div></div>
+    <div class="menu-item" onclick="launchGame('arkanoid.html')"><canvas id="logo-arkanoid" class="logo" width="64" height="64"></canvas><div class="label">Arkanoid</div></div>
+    <div class="menu-item" onclick="launchGame('frogger.html')"><canvas id="logo-frogger" class="logo" width="64" height="64"></canvas><div class="label">Frogger</div></div>
+    <div class="menu-item" onclick="launchGame('qbert.html')"><canvas id="logo-qbert" class="logo" width="64" height="64"></canvas><div class="label">Q*bert</div></div>
+    <div class="menu-item" onclick="launchGame('flappy.html')"><canvas id="logo-flappy" class="logo" width="64" height="64"></canvas><div class="label">Flappy Bird</div></div>
+  </div>
+
+  <button id="music-toggle" aria-label="Toggle music">🎵 Music</button>
+  <select id="difficulty" aria-label="Select difficulty">
+    <option value="easy">Easy</option>
+    <option value="normal" selected>Normal</option>
+    <option value="hard">Hard</option>
+  </select>
+
+  <div id="highscores">
+    <h2>Global High Scores</h2>
+    <ul id="score-list"></ul>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <footer><p>© Ivaylo's Arcade</p></footer>
+
+  <script src="js/sound.js"></script>
+  <script>
+    // Background animation
+    const bgCanvas = document.getElementById("backgroundCanvas");
+    const bgCtx = bgCanvas.getContext("2d");
+    function resizeBG(){ bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight; }
+    resizeBG();
+    let stars=[];
+    function initStars(){
+      stars=[];
+      for(let i=0;i<180;i++){
+        stars.push({x:Math.random()*bgCanvas.width,y:Math.random()*bgCanvas.height,r:Math.random()*2+0.3});
+      }
+    }
+    initStars();
+    let gradientShift=0;
+    function drawBackground(){
+      bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+      // Wave gradient horizon
+      const gradient=bgCtx.createLinearGradient(0,bgCanvas.height/2,0,bgCanvas.height);
+      gradient.addColorStop(0,`hsl(${gradientShift},100%,50%)`);
+      gradient.addColorStop(1,"black");
+      bgCtx.fillStyle=gradient;
+      bgCtx.fillRect(0,bgCanvas.height/2,bgCanvas.width,bgCanvas.height/2);
+      gradientShift=(gradientShift+1)%360;
+      // Neon grid
+      bgCtx.strokeStyle="rgba(0,255,255,0.25)";
+      bgCtx.lineWidth=1;
+      for(let x=0;x<bgCanvas.width;x+=50){ bgCtx.beginPath(); bgCtx.moveTo(x,0); bgCtx.lineTo(x,bgCanvas.height); bgCtx.stroke(); }
+      for(let y=0;y<bgCanvas.height;y+=50){ bgCtx.beginPath(); bgCtx.moveTo(0,y); bgCtx.lineTo(bgCanvas.width,y); bgCtx.stroke(); }
+      // Starfield
+      bgCtx.fillStyle="#0ff";
+      for(let s of stars){
+        bgCtx.beginPath(); bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2); bgCtx.fill();
+        s.y += 0.4 + s.r*0.05;
+        if(s.y>bgCanvas.height){ s.y=0; s.x=Math.random()*bgCanvas.width; }
+      }
+      requestAnimationFrame(drawBackground);
+    }
+    drawBackground();
+    window.addEventListener("resize", () => { resizeBG(); initStars(); });
+
+    // Sprite logos
+    const sprite = new Image();
+    sprite.src = "assets/ui/logos.png";
+    const logoMap = {
+      pong:{x:0,y:0,w:64,h:64}, snake:{x:64,y:0,w:64,h:64}, breakout:{x:128,y:0,w:64,h:64},
+      tetris:{x:192,y:0,w:64,h:64}, pacman:{x:0,y:64,w:64,h:64}, spaceinv:{x:64,y:64,w:64,h:64},
+      asteroids:{x:128,y:64,w:64,h:64}, galaga:{x:192,y:64,w:64,h:64}, donkeykong:{x:256,y:64,w:64,h:64},
+      arkanoid:{x:320,y:64,w:64,h:64}, frogger:{x:384,y:64,w:64,h:64}, qbert:{x:448,y:64,w:64,h:64},
+      flappy:{x:512,y:64,w:64,h:64}
+    };
+    sprite.onload = () => {
+      for(const [id,pos] of Object.entries(logoMap)){
+        const c = document.getElementById("logo-"+id);
+        if(c){
+          const ctx = c.getContext("2d");
+          ctx.clearRect(0,0,64,64);
+          ctx.drawImage(sprite, pos.x, pos.y, pos.w, pos.h, 0, 0, 64, 64);
+        }
+      }
+    };
+
+    // Launch game with difficulty param
+    function launchGame(gameFile){
+      playStart();
+      const diff = document.getElementById("difficulty").value;
+      window.location.href = "games/" + gameFile + "?difficulty=" + diff;
+    }
+
+    // Music with auto fade-in
+    const music = new Audio("assets/music/retro-synth-loop.mp3");
+    music.loop = true;
+    music.volume = 0;
+    let musicPlaying = false;
+    function fadeInMusic(target=0.5, step=0.01, interval=100){
+      let vol = music.volume;
+      const fade = setInterval(()=>{
+        vol = Math.min(target, vol + step);
+        music.volume = vol;
+        if(vol >= target) clearInterval(fade);
+      }, interval);
+    }
+    window.addEventListener("load", () => {
+      music.play().then(()=>{ musicPlaying = true; fadeInMusic(); }).catch(()=>{});
+      loadHighScores();
+      loadStatsPanel();
+    });
+    document.getElementById("music-toggle").addEventListener("click", () => {
+      if(musicPlaying){
+        music.pause(); musicPlaying = false; playGameOver();
+      } else {
+        music.play().then(()=>{ musicPlaying = true; fadeInMusic(); playLevelUp(); });
+      }
+    });
+
+    // Games list (IDs)
+    const games = ["pong","snake","breakout","tetris","pacman","spaceinv","asteroids","galaga","donkeykong","arkanoid","frogger","qbert","flappy"];
+
+    // Highscores with initials (top 5)
+    function loadHighScores(){
+      const list = document.getElementById("score-list");
+      list.innerHTML = "";
+      for(const g of games){
+        const key = "highscore-" + g;
+        const entries = JSON.parse(localStorage.getItem(key) || "[]");
+        const li = document.createElement("li");
+        if(entries.length){
+          li.textContent = g.toUpperCase() + ": " + entries.map(e => `${e.initials} ${e.score}`).join(" | ");
+        } else {
+          li.textContent = g.toUpperCase() + ": ---";
+        }
+        list.appendChild(li);
+      }
+    }
+
+    // Stats panel (plays + average score)
+    function loadStatsPanel(){
+      const el = document.getElementById("stats");
+      let lines = [];
+      for(const g of games){
+        const stats = JSON.parse(localStorage.getItem("stats-"+g) || '{"plays":0,"totalScore":0}');
+        const avg = stats.plays ? (stats.totalScore / stats.plays).toFixed(1) : "0.0";
+        lines.push(`${g.toUpperCase()}: ${stats.plays} plays, avg ${avg}`);
+      }
+      el.textContent = lines.join("  •  ");
+    }
+
+    // Helper: expose snippets you’ll paste into each game (for reference)
+    window.ivocadeHelpers = {
+      saveHighScore(gameName, score){
+        let initials = prompt("Enter your initials (3 letters):", "AAA");
+        if(initials){
+          initials = initials.slice(0,3).toUpperCase();
+          const key = "highscore-" + gameName;
+          const existing = JSON.parse(localStorage.getItem(key) || "[]");
+          existing.push({initials, score});
+          existing.sort((a,b)=>b.score-a.score);
+          existing.splice(5);
+          localStorage.setItem(key, JSON.stringify(existing));
+        }
+      },
+      trackStats(gameName, score){
+        const key = "stats-" + gameName;
+        const stats = JSON.parse(localStorage.getItem(key) || '{"plays":0,"totalScore":0}');
+        stats.plays++;
+        stats.totalScore += score;
+        localStorage.setItem(key, JSON.stringify(stats));
+      }
+    };
+  </script>
+</body>
+</html>

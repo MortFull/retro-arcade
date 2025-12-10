@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong — IvoCade</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.7);
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 0 10px #0ff;
+    }
+    .game-message { font-size: 2em; margin-bottom: 10px; }
+    .restart-message { font-size: 1.2em; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Pong</h1>
+
+  <div class="game-container">
+    <canvas class="default" id="pong" width="480" height="320"></canvas>
+    <div class="scoreboard" id="scoreboard">Player: 0 | CPU: 0</div>
+    <div class="game-controls">
+      <button class="restart-btn" aria-label="Restart game"></button>
+      <button class="back-btn" aria-label="Back to menu"></button>
+      <button class="sound-toggle" aria-label="Toggle sound"></button>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <footer><p>© Ivaylo's Arcade</p></footer>
+
+  <script src="../js/sound.js"></script>
+  <script>
+    const canvas = document.getElementById("pong");
+    const ctx = canvas.getContext("2d");
+    const overlay = document.getElementById("overlay");
+    const gameMessage = document.getElementById("gameMessage");
+    const scoreboard = document.getElementById("scoreboard");
+
+    let player, cpu, ball, playerScore, cpuScore, gameOver, game;
+
+    // Difficulty from hub
+    const params = new URLSearchParams(window.location.search);
+    const difficulty = params.get("difficulty") || "normal";
+    let ballSpeed = difficulty === "easy" ? 2 : difficulty === "hard" ? 4 : 3;
+
+    // Load sprite sheet
+    const sprite = new Image();
+    sprite.src = "../assets/ui/logos.png";
+
+    const logoMap = {
+      paddle: {x:64, y:0, w:64, h:64},
+      ball:   {x:0,  y:0, w:64, h:64}
+    };
+
+    function drawLogo(name, dx, dy, dw, dh){
+      const s = logoMap[name];
+      ctx.drawImage(sprite, s.x, s.y, s.w, s.h, dx, dy, dw, dh);
+    }
+
+    function initGame(){
+      player = { x:10, y:canvas.height/2-32, w:16, h:64 };
+      cpu = { x:canvas.width-26, y:canvas.height/2-32, w:16, h:64 };
+      ball = { x:canvas.width/2, y:canvas.height/2, dx:ballSpeed, dy:ballSpeed, size:16 };
+      playerScore = 0;
+      cpuScore = 0;
+      gameOver = false;
+      overlay.style.display = "none";
+
+      clearInterval(game);
+      updateScoreboard();
+      playStart();
+      game = setInterval(draw,30);
+    }
+
+    document.addEventListener("keydown", e=>{
+      if(e.key==="ArrowUp") player.y -= 20;
+      if(e.key==="ArrowDown") player.y += 20;
+      if(e.key==="Enter" && gameOver){ initGame(); }
+    });
+
+    function updateScoreboard(){
+      scoreboard.innerHTML = `Player: ${playerScore} | CPU: ${cpuScore}`;
+    }
+
+    function draw(){
+      ctx.fillStyle="black";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // draw paddles
+      drawLogo("paddle", player.x, player.y, player.w, player.h);
+      drawLogo("paddle", cpu.x, cpu.y, cpu.w, cpu.h);
+
+      // draw ball
+      drawLogo("ball", ball.x, ball.y, ball.size, ball.size);
+
+      // move ball
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+
+      // bounce top/bottom
+      if(ball.y<=0 || ball.y+ball.size>=canvas.height){
+        ball.dy *= -1;
+        playHit();
+      }
+
+      // bounce off paddles
+      if(ball.x<=player.x+player.w && ball.y+ball.size>=player.y && ball.y<=player.y+player.h){
+        ball.dx *= -1;
+        playHit();
+      }
+      if(ball.x+ball.size>=cpu.x && ball.y+ball.size>=cpu.y && ball.y<=cpu.y+cpu.h){
+        ball.dx *= -1;
+        playHit();
+      }
+
+      // score
+      if(ball.x<0){
+        cpuScore++;
+        resetBall();
+      }
+      if(ball.x>canvas.width){
+        playerScore++;
+        resetBall();
+      }
+
+      updateScoreboard();
+
+      // simple CPU AI
+      if(ball.y<cpu.y) cpu.y -= 3;
+      else if(ball.y>cpu.y+cpu.h) cpu.y += 3;
+
+      // win condition
+      if(playerScore>=5 || cpuScore>=5){
+        clearInterval(game);
+        gameOver=true;
+        overlay.style.display = "flex";
+        gameMessage.textContent = playerScore>=5 ? "YOU WIN!" : "GAME OVER";
+        if(playerScore>=5) playLevelUp(); else playGameOver();
+
+        // Save highscore + stats
+        ivocadeHelpers.saveHighScore("pong", playerScore);
+        ivocadeHelpers.trackStats("pong", playerScore);
+      }
+    }
+
+    function resetBall(){
+      ball.x=canvas.width/2;
+      ball.y=canvas.height/2;
+      ball.dx*=-1;
+      ball.dy=(Math.random()>0.5?ballSpeed:-ballSpeed);
+    }
+
+    // Restart button
+    document.querySelector('.restart-btn').addEventListener('click', () => {
+      initGame();
+    });
+
+    initGame();
+  </script>
+</body>
+</html>
