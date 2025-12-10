@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake — IvoCade</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.7);
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 0 10px #0ff;
+    }
+    .game-message { font-size: 2em; margin-bottom: 10px; }
+    .restart-message { font-size: 1.2em; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Snake</h1>
+
+  <div class="game-container">
+    <canvas class="default" id="snake" width="400" height="400"></canvas>
+    <div class="scoreboard" id="scoreboard">Score: 0</div>
+    <div class="game-controls">
+      <button class="restart-btn" aria-label="Restart game"></button>
+      <button class="back-btn" aria-label="Back to menu"></button>
+      <button class="sound-toggle" aria-label="Toggle sound"></button>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <footer><p>© Ivaylo's Arcade</p></footer>
+
+  <script src="../js/sound.js"></script>
+  <script>
+    const canvas = document.getElementById("snake");
+    const ctx = canvas.getContext("2d");
+    const overlay = document.getElementById("overlay");
+    const gameMessage = document.getElementById("gameMessage");
+    const scoreboard = document.getElementById("scoreboard");
+
+    let snake, food, dx, dy, score, gameOver, game, speed;
+
+    // Difficulty from hub
+    const params = new URLSearchParams(window.location.search);
+    const difficulty = params.get("difficulty") || "normal";
+    speed = difficulty === "easy" ? 150 : difficulty === "hard" ? 70 : 100;
+
+    // Load sprite sheet
+    const sprite = new Image();
+    sprite.src = "../assets/ui/logos.png";
+
+    const logoMap = {
+      segment: {x:192, y:0,  w:64, h:64},
+      food:    {x:0,   y:64, w:64, h:64}
+    };
+
+    function drawLogo(name, dx, dy, dw, dh){
+      const s = logoMap[name];
+      ctx.drawImage(sprite, s.x, s.y, s.w, s.h, dx, dy, dw, dh);
+    }
+
+    function initGame(){
+      snake = [{x:200,y:200}];
+      food = {x:Math.floor(Math.random()*25)*16, y:Math.floor(Math.random()*25)*16};
+      dx = 16; dy = 0;
+      score = 0;
+      gameOver = false;
+      overlay.style.display = "none";
+
+      clearInterval(game);
+      updateScoreboard();
+      playStart();
+      game = setInterval(draw, speed);
+    }
+
+    document.addEventListener("keydown", e=>{
+      if(e.key==="ArrowLeft" && dx===0){ dx=-16; dy=0; }
+      if(e.key==="ArrowRight" && dx===0){ dx=16; dy=0; }
+      if(e.key==="ArrowUp" && dy===0){ dy=-16; dx=0; }
+      if(e.key==="ArrowDown" && dy===0){ dy=16; dx=0; }
+      if(e.key==="Enter" && gameOver){ initGame(); }
+    });
+
+    function updateScoreboard(){
+      scoreboard.innerHTML = `Score: ${score}`;
+    }
+
+    function draw(){
+      ctx.fillStyle="black";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // move snake
+      const head = {x:snake[0].x+dx, y:snake[0].y+dy};
+      snake.unshift(head);
+
+      // collision with food
+      if(head.x===food.x && head.y===food.y){
+        score+=10;
+        updateScoreboard();
+        playScore();
+        food = {x:Math.floor(Math.random()*25)*16, y:Math.floor(Math.random()*25)*16};
+      } else {
+        snake.pop();
+      }
+
+      // collision with walls
+      if(head.x<0 || head.x>=canvas.width || head.y<0 || head.y>=canvas.height){
+        endGame("GAME OVER");
+      }
+
+      // collision with self
+      for(let i=1;i<snake.length;i++){
+        if(head.x===snake[i].x && head.y===snake[i].y){
+          endGame("GAME OVER");
+        }
+      }
+
+      // draw snake
+      for(let s of snake){
+        drawLogo("segment", s.x, s.y, 16, 16);
+      }
+
+      // draw food
+      drawLogo("food", food.x, food.y, 16, 16);
+
+      // win condition
+      if(snake.length>=30){
+        endGame("YOU WIN!");
+      }
+    }
+
+    function endGame(message){
+      clearInterval(game);
+      gameOver=true;
+      overlay.style.display = "flex";
+      gameMessage.textContent = message;
+      if(message==="GAME OVER"){
+        playGameOver();
+      } else {
+        playLevelUp();
+      }
+
+      // Save highscore + stats
+      ivocadeHelpers.saveHighScore("snake", score);
+      ivocadeHelpers.trackStats("snake", score);
+    }
+
+    // Restart button
+    document.querySelector('.restart-btn').addEventListener('click', () => {
+      initGame();
+    });
+
+    initGame();
+  </script>
+</body>
+</html>

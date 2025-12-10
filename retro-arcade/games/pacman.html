@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pac‑Man — IvoCade</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.7);
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 0 10px #0ff;
+    }
+    .game-message { font-size: 2em; margin-bottom: 10px; }
+    .restart-message { font-size: 1.2em; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Pac‑Man</h1>
+
+  <div class="game-container">
+    <canvas class="default" id="pacman" width="448" height="496"></canvas>
+    <div class="scoreboard" id="scoreboard">Score: 0</div>
+    <div class="game-controls">
+      <button class="restart-btn" aria-label="Restart game"></button>
+      <button class="back-btn" aria-label="Back to menu"></button>
+      <button class="sound-toggle" aria-label="Toggle sound"></button>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="game-message" id="gameMessage">GAME OVER</div>
+    <div class="restart-message">Press Enter to Restart</div>
+  </div>
+
+  <footer><p>© Ivaylo's Arcade</p></footer>
+
+  <script src="../js/sound.js"></script>
+  <script>
+    const canvas = document.getElementById("pacman");
+    const ctx = canvas.getContext("2d");
+    const overlay = document.getElementById("overlay");
+    const gameMessage = document.getElementById("gameMessage");
+    const scoreboard = document.getElementById("scoreboard");
+
+    let pacman, ghosts, pellets, score, gameOver, game;
+
+    // Difficulty from hub
+    const params = new URLSearchParams(window.location.search);
+    const difficulty = params.get("difficulty") || "normal";
+    let ghostSpeed = difficulty === "easy" ? 1.5 : difficulty === "hard" ? 3 : 2;
+
+    // Load sprite sheet
+    const sprite = new Image();
+    sprite.src = "../assets/ui/logos.png";
+
+    const logoMap = {
+      pacman: {x:0,   y:64,  w:64, h:64},
+      ghost:  {x:64,  y:64,  w:64, h:64},
+      pellet: {x:192, y:0,   w:64, h:64}
+    };
+
+    function drawLogo(name, dx, dy, dw, dh){
+      const s = logoMap[name];
+      ctx.drawImage(sprite, s.x, s.y, s.w, s.h, dx, dy, dw, dh);
+    }
+
+    function initGame(){
+      pacman = { x:200, y:200, w:32, h:32, dx:0, dy:0 };
+      ghosts = [
+        { x:100, y:100, w:32, h:32, dx:ghostSpeed, dy:0 },
+        { x:300, y:100, w:32, h:32, dx:-ghostSpeed, dy:0 }
+      ];
+      pellets = [];
+      for(let i=0;i<20;i++){
+        pellets.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, w:8, h:8 });
+      }
+      score = 0;
+      gameOver = false;
+      overlay.style.display = "none";
+
+      clearInterval(game);
+      updateScoreboard();
+      playStart();
+      game = setInterval(draw,50);
+    }
+
+    document.addEventListener("keydown", e=>{
+      if(e.key==="ArrowLeft"){ pacman.dx=-4; pacman.dy=0; }
+      if(e.key==="ArrowRight"){ pacman.dx=4; pacman.dy=0; }
+      if(e.key==="ArrowUp"){ pacman.dy=-4; pacman.dx=0; }
+      if(e.key==="ArrowDown"){ pacman.dy=4; pacman.dx=0; }
+      if(e.key==="Enter" && gameOver){ initGame(); }
+    });
+
+    function updateScoreboard(){
+      scoreboard.innerHTML = `Score: ${score}`;
+    }
+
+    function draw(){
+      ctx.fillStyle="black";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // move pacman
+      pacman.x += pacman.dx;
+      pacman.y += pacman.dy;
+
+      // wrap around edges
+      if(pacman.x<0) pacman.x=canvas.width;
+      if(pacman.x>canvas.width) pacman.x=0;
+      if(pacman.y<0) pacman.y=canvas.height;
+      if(pacman.y>canvas.height) pacman.y=0;
+
+      // draw pacman sprite
+      drawLogo("pacman", pacman.x, pacman.y, pacman.w, pacman.h);
+
+      // draw pellets
+      for(let p of pellets){
+        ctx.fillStyle="yellow";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.w/2, 0, Math.PI*2);
+        ctx.fill();
+
+        // collision with pacman
+        if(pacman.x < p.x+p.w && pacman.x+pacman.w > p.x && pacman.y < p.y+p.h && pacman.y+pacman.h > p.y){
+          pellets.splice(pellets.indexOf(p),1);
+          score+=10;
+          updateScoreboard();
+          playScore();
+        }
+      }
+
+      // draw ghosts
+      for(let g of ghosts){
+        g.x += g.dx;
+        g.y += g.dy;
+        if(g.x<0||g.x>canvas.width) g.dx*=-1;
+        if(g.y<0||g.y>canvas.height) g.dy*=-1;
+        drawLogo("ghost", g.x, g.y, g.w, g.h);
+
+        // collision with pacman
+        if(pacman.x < g.x+g.w && pacman.x+pacman.w > g.x && pacman.y < g.y+g.h && pacman.y+pacman.h > g.y){
+          clearInterval(game);
+          gameOver=true;
+          overlay.style.display = "flex";
+          gameMessage.textContent = "GAME OVER";
+          playGameOver();
+
+          // Save highscore + stats
+          ivocadeHelpers.saveHighScore("pacman", score);
+          ivocadeHelpers.trackStats("pacman", score);
+        }
+      }
+
+      // win condition
+      if(pellets.length===0){
+        clearInterval(game);
+        gameOver=true;
+        overlay.style.display = "flex";
+        gameMessage.textContent = "YOU WIN!";
+        playLevelUp();
+
+        // Save highscore + stats
+        ivocadeHelpers.saveHighScore("pacman", score);
+        ivocadeHelpers.trackStats("pacman", score);
+      }
+    }
+
+    // Restart button
+    document.querySelector('.restart-btn').addEventListener('click', () => {
+      initGame();
+    });
+
+    initGame();
+  </script>
+</body>
+</html>
